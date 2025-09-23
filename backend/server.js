@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { Server } = require("socket.io");
 
 const server = http.createServer((req, res) => {
     // Construct the file path to serve from the 'frontend' directory
@@ -46,4 +47,12 @@ const PORT = 8080;
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
     console.log('Serving files from the ../frontend directory.');
+});
+const io = new Server(server);
+
+io.on('connection', (socket) => {
+  console.log('Un utilisateur s\'est connecté via WebSocket');
+  socket.on('disconnect', () => {
+    console.log('Un utilisateur s\'est déconnecté');
+  });
 });
