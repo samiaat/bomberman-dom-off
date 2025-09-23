@@ -7,8 +7,8 @@ const { Server } = require("socket.io");
 // --- Game Constants ---
 const MAP_WIDTH = 15;
 const MAP_HEIGHT = 13;
-const GAME_TICK_RATE = 1000 / 60; // 60 updates per second
-const PLAYER_SPEED = 0.1; // Determines how fast player moves between tiles
+const BOMB_TIMER = 3000; // 3 seconds
+const GAME_TICK_RATE = 1000 / 60; // 60fps for broadcasting state
 
 // --- Game Logic ---
 const generateMap = () => {
@@ -43,25 +43,25 @@ io.on('connection', (socket) => {
     }
 
     const startPosition = startPositions[numPlayers];
-    gameState.players[socket.id] = {
-        id: socket.id,
-        x: startPosition.x, y: startPosition.y,
-        fromX: startPosition.x, fromY: startPosition.y,
-        toX: startPosition.x, toY: startPosition.y,
-        moveProgress: 1.0,
-        direction: 'down',
-        keys: { up: false, down: false, left: false, right: false }
-    };
+    gameState.players[socket.id] = { x: startPosition.x, y: startPosition.y };
 
-    socket.on('startMove', (data) => {
-        if (gameState.players[socket.id] && data.direction) {
-            gameState.players[socket.id].keys[data.direction] = true;
+    socket.on('move', (data) => {
+        const player = gameState.players[socket.id];
+        if (!player) return;
+        let newX = player.x; let newY = player.y;
+        if (data.direction === 'up') newY -= 1;
+        if (data.direction === 'down') newY += 1;
+        if (data.direction === 'left') newX -= 1;
+        if (data.direction === 'right') newX += 1;
+        if (gameState.map[newY] && gameState.map[newY][newX] === 0) {
+            player.x = newX; player.y = newY;
         }
     });
 
-    socket.on('stopMove', (data) => {
-        if (gameState.players[socket.id] && data.direction) {
-            gameState.players[socket.id].keys[data.direction] = false;
+    socket.on('placeBomb', () => {
+        const player = gameState.players[socket.id];
+        if (player) {
+            gameState.bombs.push({ x: player.x, y: player.y, createdAt: Date.now() });
         }
     });
 
@@ -73,40 +73,64 @@ io.on('connection', (socket) => {
 
 // --- Game Loop ---
 setInterval(() => {
-    for (const id in gameState.players) {
-        const player = gameState.players[id];
+    const now = Date.now();
+    const explodingBombs = [];
 
-        if (player.moveProgress < 1.0) {
-            player.moveProgress = Math.min(1.0, player.moveProgress + PLAYER_SPEED);
-            if (player.moveProgress >= 1.0) {
-                player.fromX = player.toX;
-                player.fromY = player.toY;
-            }
+    // Identify bombs that should explode now
+    gameState.bombs.forEach(bomb => {
+        if (now - bomb.createdAt >= BOMB_TIMER) {
+            explodingBombs.push(bomb);
         }
+    });
 
-        if (player.moveProgress === 1.0) {
-            const desiredDirection = ['down', 'up', 'left', 'right'].find(key => player.keys[key]);
-            if (desiredDirection) {
-                let targetX = player.fromX;
-                let targetY = player.fromY;
-                if (desiredDirection === 'up') targetY -= 1;
-                if (desiredDirection === 'down') targetY += 1;
-                if (desiredDirection === 'left') targetX -= 1;
-                if (desiredDirection === 'right') targetX += 1;
+    if (explodingBombs.length > 0) {
+        explodingBombs.forEach(bomb => {
+            // For now, flame size is hardcoded to 1
+            const flameSize = 1;
+            const explosionCoords = [{ x: bomb.x, y: bomb.y }]; // Center of explosion
 
-                if (gameState.map[targetY] && gameState.map[targetY][targetX] === 0) {
-                    player.toX = targetX;
-                    player.toY = targetY;
-                    player.direction = desiredDirection;
-                    player.moveProgress = 0.0;
+            // Right
+            for(let i = 1; i <= flameSize; i++) {
+                if(gameState.map[bomb.y][bomb.x + i] === 1) break; // Stop at wall
+                explosionCoords.push({ x: bomb.x + i, y: bomb.y });
+                if(gameState.map[bomb.y][bomb.x + i] === 2) break; // Stop after hitting a block
+            }
+            // Left
+            for(let i = 1; i <= flameSize; i++) {
+                if(gameState.map[bomb.y][bomb.x - i] === 1) break;
+                explosionCoords.push({ x: bomb.x - i, y: bomb.y });
+                if(gameState.map[bomb.y][bomb.x - i] === 2) break;
+            }
+            // Down
+            for(let i = 1; i <= flameSize; i++) {
+                if(gameState.map[bomb.y + i][bomb.x] === 1) break;
+                explosionCoords.push({ x: bomb.x, y: bomb.y + i });
+                if(gameState.map[bomb.y + i][bomb.x] === 2) break;
+            }
+            // Up
+            for(let i = 1; i <= flameSize; i++) {
+                if(gameState.map[bomb.y - i][bomb.x] === 1) break;
+                explosionCoords.push({ x: bomb.x, y: bomb.y - i });
+                if(gameState.map[bomb.y - i][bomb.x] === 2) break;
+            }
+
+            // Destroy blocks in the explosion radius
+            explosionCoords.forEach(coord => {
+                if (gameState.map[coord.y] && gameState.map[coord.y][coord.x] === 2) {
+                    gameState.map[coord.y][coord.x] = 0; // Turn block into floor
                 }
-            }
-        }
-        player.x = player.fromX + (player.toX - player.fromX) * player.moveProgress;
-        player.y = player.fromY + (player.toY - player.fromY) * player.moveProgress;
+            });
+        });
+
+        // Remove the exploded bombs from the game state
+        const explodedBombSet = new Set(explodingBombs);
+        gameState.bombs = gameState.bombs.filter(bomb => !explodedBombSet.has(bomb));
     }
+
+    // Broadcast the state to all clients
     io.emit('gameState', gameState);
 }, GAME_TICK_RATE);
+
 
 const PORT = 8080;
 server.listen(PORT, () => {
