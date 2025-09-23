@@ -21,3 +21,19 @@ const App = () => FacileJS.createElement(GameScreen, {});
 // Mount the app to the root element
 const root = document.getElementById('root');
 FacileJS.createApp(App, root);
+
+// --- Keyboard Input Handling ---
+window.addEventListener('keydown', (e) => {
+    const keyMap = {
+        'ArrowUp': 'up',
+        'ArrowDown': 'down',
+        'ArrowLeft': 'left',
+        'ArrowRight': 'right'
+    };
+
+    const direction = keyMap[e.key];
+    if (direction) {
+        e.preventDefault();
+        socket.emit('move', { direction });
+    }
+});

@@ -50,8 +50,14 @@ server.listen(PORT, () => {
 const io = new Server(server);
 
 io.on('connection', (socket) => {
-  console.log('Un utilisateur s\'est connecté via WebSocket');
+  console.log(`Un utilisateur s'est connecté via WebSocket: ${socket.id}`);
+
+  // Temporary listener to check for move events 
+  socket.on('move', (data) => {
+    console.log(`Received move event from ${socket.id}:`, data);
+  });
+
   socket.on('disconnect', () => {
-    console.log('Un utilisateur s\'est déconnecté');
+    console.log(`Un utilisateur s'est déconnecté: ${socket.id}`);
   });
 });
