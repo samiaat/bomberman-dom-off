@@ -50,6 +50,14 @@ export const GameScreen = (props) => {
                 class: 'bomb',
                 style: `left: ${bomb.x * 40}px; top: ${bomb.y * 40}px;`
             })
+        ),
+
+        // Render all power-ups
+        ...(gameState.powerUps || []).map(powerUp =>
+            FacileJS.createElement('div', {
+                class: `powerup ${powerUp.type}`,
+                style: `left: ${powerUp.x * 40}px; top: ${powerUp.y * 40}px;`
+            }, powerUp.type.charAt(0).toUpperCase()) // Display first letter
         )
     );
 };

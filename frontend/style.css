@@ -60,3 +60,31 @@ body {
     margin: 5px;
     z-index: 5; /* Below players */
 }
+
+.powerup {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    margin: 5px;
+    z-index: 4; /* Below bombs and players */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    font-size: 20px;
+    text-shadow: 1px 1px 2px black;
+}
+
+.powerup.bombs {
+    background-color: #4a90e2; /* A distinct blue */
+}
+
+.powerup.flame {
+    background-color: #f5a623; /* A fiery orange */
+}
+
+.powerup.speed {
+    background-color: #50e3c2; /* A speedy teal */
+}
