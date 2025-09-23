@@ -33,12 +33,34 @@ const server = http.createServer((req, res) => {
 // --- WebSocket Server ---
 const io = new Server(server);
 
+const startPositions = [
+    { x: 1, y: 1 },
+    { x: MAP_WIDTH - 2, y: 1 },
+    { x: 1, y: MAP_HEIGHT - 2 },
+    { x: MAP_WIDTH - 2, y: MAP_HEIGHT - 2 }
+];
+
 io.on('connection', (socket) => {
+    const numPlayers = Object.keys(gameState.players).length;
+
+    if (numPlayers >= 4) {
+        console.log(`Game is full. Rejecting player ${socket.id}`);
+        socket.disconnect();
+        return;
+    }
+
     console.log(`Player connected: ${socket.id}`);
+    const startPosition = startPositions[numPlayers];
+
     gameState.players[socket.id] = {
-        x: 1, y: 1,
+        x: startPosition.x,
+        y: startPosition.y,
         moving: { up: false, down: false, left: false, right: false }
     };
+
+    // Broadcast is handled by the game loop, but we can send one on connect
+    // to get the player in the game immediately.
+    io.emit('gameState', gameState);
 
     socket.on('startMove', (data) => {
         if (gameState.players[socket.id]) {
@@ -55,6 +77,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log(`Player disconnected: ${socket.id}`);
         delete gameState.players[socket.id];
+        // The game loop will naturally broadcast the change
     });
 });
 
