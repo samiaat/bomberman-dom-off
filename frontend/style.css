@@ -88,3 +88,8 @@ body {
 .powerup.speed {
     background-color: #50e3c2; /* A speedy teal */
 }
+
+.powerup.oneup {
+    background-color: #4caf50; /* A lucky green */
+    font-size: 16px;
+}

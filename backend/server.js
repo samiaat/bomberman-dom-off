@@ -116,7 +116,7 @@ setInterval(() => {
             }
 
             // Destroy blocks and potentially spawn power-ups
-            const powerUpTypes = ['bombs', 'flame', 'speed'];
+            const powerUpTypes = ['bombs', 'flame', 'speed', 'oneup'];
             const POWERUP_CHANCE = 0.5; // 50% chance
 
             explosionCoords.forEach(coord => {

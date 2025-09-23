@@ -57,7 +57,7 @@ export const GameScreen = (props) => {
             FacileJS.createElement('div', {
                 class: `powerup ${powerUp.type}`,
                 style: `left: ${powerUp.x * 40}px; top: ${powerUp.y * 40}px;`
-            }, powerUp.type.charAt(0).toUpperCase()) // Display first letter
+            }, powerUp.type === 'oneup' ? '1UP' : powerUp.type.charAt(0).toUpperCase())
         )
     );
 };
