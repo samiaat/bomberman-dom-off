@@ -1,0 +1,62 @@
+/* FacileJS Bomberman - From Scratch */
+/* Dark Mode Theme (User's Preference) */
+
+body {
+    background-color: #3d1f2d; /* Dark Purple Background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: sans-serif;
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(15, 40px);
+    grid-template-rows: repeat(13, 40px);
+    border: 5px solid #b23a48; /* Use the brighter red for the border */
+    position: relative;
+}
+
+.tile {
+    width: 40px;
+    height: 40px;
+    box-sizing: border-box;
+}
+
+.floor {
+    background-color: #5b3f4d; /* A darker, muted floor color */
+}
+
+.wall {
+    background-color: #8c2f39; /* Dark purplish-red for indestructible walls */
+}
+
+.block {
+    background-color: #b23a48; /* Moody pink/red for destructible blocks */
+    border: 1px solid #8c2f39;
+}
+
+.player {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: #ff85b3; /* Bright candy pink for the player */
+    border-radius: 50%;
+    border: 2px solid white;
+    margin: 5px;
+    transition: all 0.1s linear;
+    z-index: 10;
+}
+
+.bomb {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: #333;
+    border-radius: 50%;
+    border: 2px solid #111;
+    margin: 5px;
+    z-index: 5; /* Below players */
+}
