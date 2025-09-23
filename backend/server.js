@@ -44,7 +44,14 @@ io.on('connection', (socket) => {
     }
 
     const startPosition = startPositions[numPlayers];
-    gameState.players[socket.id] = { x: startPosition.x, y: startPosition.y };
+    gameState.players[socket.id] = {
+        x: startPosition.x,
+        y: startPosition.y,
+        lives: 3,
+        speed: 1, // Not used yet, but for the power-up
+        flameSize: 1,
+        maxBombs: 1,
+    };
 
     socket.on('move', (data) => {
         const player = gameState.players[socket.id];
@@ -55,7 +62,24 @@ io.on('connection', (socket) => {
         if (data.direction === 'left') newX -= 1;
         if (data.direction === 'right') newX += 1;
         if (gameState.map[newY] && gameState.map[newY][newX] === 0) {
-            player.x = newX; player.y = newY;
+            player.x = newX;
+            player.y = newY;
+
+            // Check for power-up collection
+            const powerUpIndex = gameState.powerUps.findIndex(p => p.x === player.x && p.y === player.y);
+            if (powerUpIndex !== -1) {
+                const powerUp = gameState.powerUps[powerUpIndex];
+                console.log(`Player ${socket.id} collected ${powerUp.type}`);
+
+                // Apply power-up effect
+                if (powerUp.type === 'bombs') player.maxBombs++;
+                if (powerUp.type === 'flame') player.flameSize++;
+                if (powerUp.type === 'speed') player.speed++;
+                if (powerUp.type === 'oneup') player.lives++;
+
+                // Remove power-up from game state
+                gameState.powerUps.splice(powerUpIndex, 1);
+            }
         }
     });
 
