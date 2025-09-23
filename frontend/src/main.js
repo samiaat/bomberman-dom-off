@@ -1,34 +1,52 @@
-// FacileJS Bomberman - From Scratch
-console.log("Frontend script loaded.");
+import FacileJS from '../framework/index.js';
+import { GameScreen } from './components/GameScreen.js';
 
-// Connect to the WebSocket server
+// --- Game State Management ---
+let gameState = null;
+
+// --- Socket.io Connection ---
 const socket = io("http://localhost:8080");
 socket.on("connect", () => { console.log("✅ Connecté au serveur Socket.IO !"); });
 socket.on("disconnect", () => { console.log("❌ Déconnecté du serveur Socket.IO"); });
 
-// Import the framework and the main game screen component
-import FacileJS from '../framework/index.js';
-import { GameScreen } from './components/GameScreen.js';
+// --- Keyboard Input Handling for Continuous Movement ---
+const keysPressed = {};
+const keyMap = { 'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right' };
 
-// --- Keyboard Input Handling ---
 const handleKeyDown = (e) => {
-    const keyMap = {
-        'ArrowUp': 'up',
-        'ArrowDown': 'down',
-        'ArrowLeft': 'left',
-        'ArrowRight': 'right'
-    };
-
     const direction = keyMap[e.key];
-    if (direction) {
-        e.preventDefault(); // Prevent scrolling the page with arrow keys
-        socket.emit('move', { direction });
+    if (direction && !keysPressed[e.key]) {
+        e.preventDefault();
+        keysPressed[e.key] = true;
+        socket.emit('startMove', { direction });
     }
 };
 
-// The main App component now passes the keydown handler directly to the GameScreen component
-const App = () => FacileJS.createElement(GameScreen, { onkeydown: handleKeyDown });
+const handleKeyUp = (e) => {
+    const direction = keyMap[e.key];
+    if (direction) {
+        e.preventDefault();
+        keysPressed[e.key] = false;
+        socket.emit('stopMove', { direction });
+    }
+};
 
-// Mount the app to the root element
+// --- App Component ---
+const App = () => FacileJS.createElement(
+    GameScreen,
+    {
+        onkeydown: handleKeyDown,
+        onkeyup: handleKeyUp,
+        gameState: gameState
+    }
+);
+
+// --- App Initialization & Re-rendering ---
 const root = document.getElementById('root');
-FacileJS.createApp(App, root);
+const updateApp = FacileJS.createApp(App, root);
+
+// --- Game State Update Listener ---
+socket.on('gameState', (newState) => {
+    gameState = newState;
+    updateApp();
+});
