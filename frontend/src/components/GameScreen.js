@@ -1,12 +1,13 @@
 import FacileJS from '../../framework/index.js';
 
 export const GameScreen = (props) => {
-    const { gameState, onkeydown } = props;
+    const { gameState, onkeydown, onkeyup } = props;
 
     // If gameState is not yet available, show a loading message and still provide a focusable element
     if (!gameState || !gameState.map) {
         return FacileJS.createElement('div', {
             onkeydown: onkeydown,
+            onkeyup: onkeyup,
             tabindex: "0",
             autofocus: true,
             class: 'loading-screen' // Add a class for styling
@@ -24,6 +25,7 @@ export const GameScreen = (props) => {
     return FacileJS.createElement('div', {
             class: 'game-board',
             onkeydown: onkeydown, // Pass the event handler to the main game board
+            onkeyup: onkeyup, // Pass the keyup handler as well
             tabindex: "0",
             autofocus: true
         },
@@ -39,6 +41,14 @@ export const GameScreen = (props) => {
             FacileJS.createElement('div', {
                 class: 'player',
                 style: `left: ${player.x * 40}px; top: ${player.y * 40}px;`
+            })
+        ),
+
+        // Render all bombs from the server-provided state
+        ...(gameState.bombs || []).map(bomb =>
+            FacileJS.createElement('div', {
+                class: 'bomb',
+                style: `left: ${bomb.x * 40}px; top: ${bomb.y * 40}px;`
             })
         )
     );
