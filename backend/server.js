@@ -24,6 +24,7 @@ const gameState = {
     map: generateMap(),
     players: {},
     bombs: [],
+    powerUps: [],
 };
 
 // --- HTTP Server ---
@@ -114,10 +115,22 @@ setInterval(() => {
                 if(gameState.map[bomb.y - i][bomb.x] === 2) break;
             }
 
-            // Destroy blocks in the explosion radius
+            // Destroy blocks and potentially spawn power-ups
+            const powerUpTypes = ['bombs', 'flame', 'speed'];
+            const POWERUP_CHANCE = 0.5; // 50% chance
+
             explosionCoords.forEach(coord => {
                 if (gameState.map[coord.y] && gameState.map[coord.y][coord.x] === 2) {
                     gameState.map[coord.y][coord.x] = 0; // Turn block into floor
+
+                    if (Math.random() < POWERUP_CHANCE) {
+                        const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+                        gameState.powerUps.push({
+                            x: coord.x,
+                            y: coord.y,
+                            type: type,
+                        });
+                    }
                 }
             });
         });
