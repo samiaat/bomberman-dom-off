@@ -19,6 +19,10 @@ export const render = (vnode) => {
     return document.createTextNode(vnode.toString());
   }
 
+  if (typeof vnode.tag === 'function') {
+    return render(vnode.tag({ ...vnode.props, children: vnode.children }));
+  }
+
   const { tag, props, children } = vnode;
 
   const element = document.createElement(tag);
@@ -93,31 +97,31 @@ function patchProps(el, oldProps, newProps) {
 function patch(parentEl, oldVNode, newVNode, index = 0) {
     const el = parentEl.childNodes[index];
 
-    if (!el) {
+    if (newVNode === undefined) {
+        el.remove();
+        return;
+    }
+
+    if (oldVNode === undefined) {
         parentEl.appendChild(render(newVNode));
         return;
     }
 
-    const oldV = (oldVNode == null || typeof oldVNode === 'boolean') ? '' : oldVNode;
-    const newV = (newVNode == null || typeof newVNode === 'boolean') ? '' : newVNode;
-
-    const oldIsPrimitive = typeof oldV !== 'object';
-    const newIsPrimitive = typeof newV !== 'object';
-
-    if (oldIsPrimitive || newIsPrimitive) {
-        if (String(oldV) !== String(newV)) {
-            el.replaceWith(render(newV));
-        }
+    // If it's a component, we diff its rendered output
+    if (typeof oldVNode.tag === 'function' || typeof newVNode.tag === 'function') {
+        const oldRendered = typeof oldVNode?.tag === 'function' ? oldVNode.tag(oldVNode.props) : oldVNode;
+        const newRendered = typeof newVNode?.tag === 'function' ? newVNode.tag(newVNode.props) : newVNode;
+        patch(parentEl, oldRendered, newRendered, index);
         return;
     }
 
-    if (oldV.tag !== newV.tag) {
-        el.replaceWith(render(newV));
+    if (typeof oldVNode !== typeof newVNode || (typeof oldVNode === 'string' && oldVNode !== newVNode) || oldVNode.tag !== newVNode.tag) {
+        el.replaceWith(render(newVNode));
         return;
     }
 
-    patchProps(el, oldV.props, newV.props);
-    patchChildren(el, oldV.children, newV.children);
+    patchProps(el, oldVNode.props, newVNode.props);
+    patchChildren(el, oldVNode.children || [], newVNode.children || []);
 }
 
 function patchChildren(parentEl, oldChildren, newChildren) {
