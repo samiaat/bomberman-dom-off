@@ -11,3 +11,13 @@ socket.on("disconnect", () => {
   console.log("❌ Déconnecté du serveur Socket.IO");
 });
 
+// Import the framework and the main game screen component
+import FacileJS from '../framework/index.js';
+import { GameScreen } from './components/GameScreen.js';
+
+// The main App component now simply renders the GameScreen
+const App = () => FacileJS.createElement(GameScreen, {});
+
+// Mount the app to the root element
+const root = document.getElementById('root');
+FacileJS.createApp(App, root);

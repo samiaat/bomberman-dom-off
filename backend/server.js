@@ -31,12 +31,11 @@ const server = http.createServer((req, res) => {
                 res.writeHead(404, { 'Content-Type': 'text/html' });
                 res.end('<h1>404 Not Found</h1><p>The requested URL ' + req.url + ' was not found on this server.</p>', 'utf-8');
             } else {
-                // Internal Server Error
                 res.writeHead(500);
                 res.end('Server Error: ' + err.code);
             }
         } else {
-            // Success
+            
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content, 'utf-8');
         }
