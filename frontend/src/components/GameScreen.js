@@ -1,4 +1,5 @@
 import FacileJS from '../../framework/index.js';
+import { PlayerPanel } from './PlayerPanel.js';
 
 // A simple sub-component to display player stats
 const StatsDisplay = (player) => {
@@ -21,15 +22,13 @@ const StatsDisplay = (player) => {
 export const GameScreen = (props) => {
     const { gameState, onkeydown, onkeyup, myId } = props;
 
-    // Main container for the entire game view
-    const mainContainer = FacileJS.createElement('div', { class: 'main-container' });
+    // Main layout container for the game
+    const gameLayout = FacileJS.createElement('div', { class: 'game-layout' });
 
     if (!gameState || !gameState.map) {
         const loadingScreen = FacileJS.createElement('div', { class: 'loading-screen' }, 'Loading game state...');
-        mainContainer.children.push(loadingScreen);
-        // Still render an empty stats panel during initial load
-        mainContainer.children.push(FacileJS.createElement(StatsDisplay, null));
-        return mainContainer;
+        gameLayout.children.push(loadingScreen);
+        return gameLayout;
     }
 
     const { map, players, bombs, powerUps } = gameState;
@@ -45,14 +44,18 @@ export const GameScreen = (props) => {
             autofocus: true
         },
         ...map.map(row => row.map(tile => FacileJS.createElement('div', { class: `tile ${tileTypeToClass[tile]}` }))).flat(),
-        ...Object.values(players).map(player => FacileJS.createElement('div', { class: 'player', style: `left: ${player.x * 40}px; top: ${player.y * 40}px;` })),
+        ...Object.values(players).map(player => FacileJS.createElement('div', {
+            class: 'player',
+            style: `left: ${player.x * 40}px; top: ${player.y * 40}px; background-color: ${player.color};`
+        })),
         ...(bombs || []).map(bomb => FacileJS.createElement('div', { class: 'bomb', style: `left: ${bomb.x * 40}px; top: ${bomb.y * 40}px;` })),
         ...(powerUps || []).map(powerUp => FacileJS.createElement('div', { class: `powerup ${powerUp.type}`, style: `left: ${powerUp.x * 40}px; top: ${powerUp.y * 40}px;` }, powerUp.type === 'oneup' ? '1UP' : powerUp.type.charAt(0).toUpperCase()))
     );
 
-    mainContainer.children.push(gameBoard);
-    // Pass the current player's data (which could be undefined) to the stats display
-    mainContainer.children.push(FacileJS.createElement(StatsDisplay, me));
+    // Add panels and game board to the layout
+    gameLayout.children.push(FacileJS.createElement(PlayerPanel, { players, myId }));
+    gameLayout.children.push(gameBoard);
+    gameLayout.children.push(FacileJS.createElement(StatsDisplay, me)); // Keep stats on the right
 
-    return mainContainer;
+    return gameLayout;
 };

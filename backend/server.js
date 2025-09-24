@@ -35,6 +35,7 @@ const server = http.createServer((req, res) => {
 // --- WebSocket Server ---
 const io = new Server(server);
 const startPositions = [ { x: 1, y: 1 }, { x: MAP_WIDTH - 2, y: 1 }, { x: 1, y: MAP_HEIGHT - 2 }, { x: MAP_WIDTH - 2, y: MAP_HEIGHT - 2 } ];
+const PLAYER_COLORS = ['#ff85b3', '#4a90e2', '#50e3c2', '#f5a623']; // Pink, Blue, Teal, Orange
 
 io.on('connection', (socket) => {
     const numPlayers = Object.keys(gameState.players).length;
@@ -48,10 +49,10 @@ io.on('connection', (socket) => {
         x: startPosition.x,
         y: startPosition.y,
         lives: 3,
-        speed: 1, // Not used yet, but for the power-up
+        speed: 1,
         flameSize: 1,
         maxBombs: 1,
-        blockPass: false,
+        color: PLAYER_COLORS[numPlayers],
     };
 
     // Send the player their unique ID so they know who they are
@@ -65,11 +66,7 @@ io.on('connection', (socket) => {
         if (data.direction === 'down') newY += 1;
         if (data.direction === 'left') newX -= 1;
         if (data.direction === 'right') newX += 1;
-
-        const destinationTile = gameState.map[newY] && gameState.map[newY][newX];
-        const canMove = destinationTile === 0 || (player.blockPass && destinationTile === 2);
-
-        if (canMove) {
+        if (gameState.map[newY] && gameState.map[newY][newX] === 0) {
             player.x = newX;
             player.y = newY;
 
@@ -84,7 +81,6 @@ io.on('connection', (socket) => {
                 if (powerUp.type === 'flame') player.flameSize++;
                 if (powerUp.type === 'speed') player.speed++;
                 if (powerUp.type === 'oneup') player.lives++;
-                if (powerUp.type === 'block_pass') player.blockPass = true;
 
                 // Remove power-up from game state
                 gameState.powerUps.splice(powerUpIndex, 1);
@@ -155,7 +151,7 @@ setInterval(() => {
         }
 
         // Destroy blocks and spawn power-ups
-        const powerUpTypes = ['bombs', 'flame', 'speed', 'oneup', 'block_pass'];
+        const powerUpTypes = ['bombs', 'flame', 'speed', 'oneup'];
         const POWERUP_CHANCE = 0.5;
         allExplosionCoords.forEach(coordStr => {
             const [x, y] = coordStr.split(',').map(Number);
