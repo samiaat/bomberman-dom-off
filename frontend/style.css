@@ -93,3 +93,31 @@ body {
     background-color: #4caf50; /* A lucky green */
     font-size: 16px;
 }
+
+
+.main-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+}
+
+.stats-panel {
+    padding: 10px 20px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 2px solid #b23a48;
+    color: #fdeaf1;
+    width: 200px;
+}
+
+.stats-panel h3 {
+    margin-top: 0;
+    color: #ff85b3;
+    text-align: center;
+    border-bottom: 1px solid #b23a48;
+    padding-bottom: 5px;
+}
+
+.stats-panel p {
+    margin: 5px 0;
+}

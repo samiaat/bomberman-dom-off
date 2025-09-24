@@ -3,42 +3,39 @@ import { GameScreen } from './components/GameScreen.js';
 
 // --- Game State Management ---
 let gameState = null;
+let myId = null; // Will be set by the server
 
 // --- Socket.io Connection ---
 const socket = io("http://localhost:8080");
 socket.on("connect", () => { console.log("✅ Connecté au serveur Socket.IO !"); });
 socket.on("disconnect", () => { console.log("❌ Déconnecté du serveur Socket.IO"); });
 
+// Listen for the welcome message to get our unique ID
+socket.on('welcome', (data) => {
+    myId = data.myId;
+});
+
 // --- Keyboard Input Handling for Tile-based Movement ---
 const keyMap = { 'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right' };
 let moveInterval = null;
 let currentDirection = null;
-const MOVE_INTERVAL_MS = 120; // Speed of tile-based movement
-
-const stopMoving = (direction = null) => {
-    // If a specific direction is provided for stopping (on keyup),
-    // only stop if it's the one currently active.
-    if (direction && direction !== currentDirection) {
-        return;
-    }
-    clearInterval(moveInterval);
-    moveInterval = null;
-    currentDirection = null;
-};
+const MOVE_INTERVAL_MS = 120;
 
 const startMoving = (direction) => {
-    if (direction === currentDirection) return; // Already moving in this direction
-
-    stopMoving(); // Stop any previous movement unconditionally
+    if (direction === currentDirection) return;
+    stopMoving();
     currentDirection = direction;
-
-    // Move once immediately for responsiveness
     socket.emit('move', { direction });
-
-    // Then set an interval for continuous movement
     moveInterval = setInterval(() => {
         socket.emit('move', { direction });
     }, MOVE_INTERVAL_MS);
+};
+
+const stopMoving = (direction = null) => {
+    if (direction && direction !== currentDirection) return;
+    clearInterval(moveInterval);
+    moveInterval = null;
+    currentDirection = null;
 };
 
 const handleKeyDown = (e) => {
@@ -55,7 +52,6 @@ const handleKeyUp = (e) => {
         e.preventDefault();
         stopMoving(direction);
     }
-
     if (e.key === ' ') {
         e.preventDefault();
         socket.emit('placeBomb');
@@ -68,7 +64,8 @@ const App = () => FacileJS.createElement(
     {
         onkeydown: handleKeyDown,
         onkeyup: handleKeyUp,
-        gameState: gameState
+        gameState: gameState,
+        myId: myId // Pass our ID to the component
     }
 );
 

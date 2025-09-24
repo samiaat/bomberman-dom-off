@@ -53,6 +53,9 @@ io.on('connection', (socket) => {
         maxBombs: 1,
     };
 
+    // Send the player their unique ID so they know who they are
+    socket.emit('welcome', { myId: socket.id });
+
     socket.on('move', (data) => {
         const player = gameState.players[socket.id];
         if (!player) return;

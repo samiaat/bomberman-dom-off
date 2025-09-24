@@ -1,63 +1,51 @@
 import FacileJS from '../../framework/index.js';
 
-export const GameScreen = (props) => {
-    const { gameState, onkeydown, onkeyup } = props;
+// A simple sub-component to display player stats
+const StatsDisplay = (player) => {
+    if (!player) {
+        return FacileJS.createElement('div', { class: 'stats-panel' }, '...');
+    }
+    return FacileJS.createElement('div', { class: 'stats-panel' },
+        FacileJS.createElement('h3', {}, 'Mes Stats'),
+        FacileJS.createElement('p', {}, `Vies: ${player.lives}`),
+        FacileJS.createElement('p', {}, `Bombes Max: ${player.maxBombs}`),
+        FacileJS.createElement('p', {}, `Portée Flamme: ${player.flameSize}`),
+        FacileJS.createElement('p', {}, `Vitesse: ${player.speed}`),
+    );
+};
 
-    // If gameState is not yet available, show a loading message and still provide a focusable element
+export const GameScreen = (props) => {
+    const { gameState, onkeydown, onkeyup, myId } = props;
+
+    // Main container for the entire game view
+    const mainContainer = FacileJS.createElement('div', { class: 'main-container' });
+
     if (!gameState || !gameState.map) {
-        return FacileJS.createElement('div', {
+        const loadingScreen = FacileJS.createElement('div', { class: 'loading-screen' }, 'Loading game state...');
+        mainContainer.children.push(loadingScreen);
+        return mainContainer;
+    }
+
+    const { map, players, bombs, powerUps } = gameState;
+    const me = players[myId];
+
+    const tileTypeToClass = { 0: 'floor', 1: 'wall', 2: 'block' };
+
+    const gameBoard = FacileJS.createElement('div', {
+            class: 'game-board',
             onkeydown: onkeydown,
             onkeyup: onkeyup,
             tabindex: "0",
-            autofocus: true,
-            class: 'loading-screen' // Add a class for styling
-        }, 'Loading game state...');
-    }
-
-    const { map, players } = gameState;
-
-    const tileTypeToClass = {
-        0: 'floor',
-        1: 'wall',
-        2: 'block'
-    };
-
-    return FacileJS.createElement('div', {
-            class: 'game-board',
-            onkeydown: onkeydown, // Pass the event handler to the main game board
-            onkeyup: onkeyup, // Pass the keyup handler as well
-            tabindex: "0",
             autofocus: true
         },
-        // Render the map tiles from the server-provided state
-        ...map.map((row) =>
-            row.map((tile) =>
-                FacileJS.createElement('div', { class: `tile ${tileTypeToClass[tile]}` })
-            )
-        ).flat(),
-
-        // Render all players from the server-provided state
-        ...Object.values(players).map(player =>
-            FacileJS.createElement('div', {
-                class: 'player',
-                style: `left: ${player.x * 40}px; top: ${player.y * 40}px;`
-            })
-        ),
-
-        // Render all bombs from the server-provided state
-        ...(gameState.bombs || []).map(bomb =>
-            FacileJS.createElement('div', {
-                class: 'bomb',
-                style: `left: ${bomb.x * 40}px; top: ${bomb.y * 40}px;`
-            })
-        ),
-
-        // Render all power-ups
-        ...(gameState.powerUps || []).map(powerUp =>
-            FacileJS.createElement('div', {
-                class: `powerup ${powerUp.type}`,
-                style: `left: ${powerUp.x * 40}px; top: ${powerUp.y * 40}px;`
-            }, powerUp.type === 'oneup' ? '1UP' : powerUp.type.charAt(0).toUpperCase())
-        )
+        ...map.map(row => row.map(tile => FacileJS.createElement('div', { class: `tile ${tileTypeToClass[tile]}` }))).flat(),
+        ...Object.values(players).map(player => FacileJS.createElement('div', { class: 'player', style: `left: ${player.x * 40}px; top: ${player.y * 40}px;` })),
+        ...(bombs || []).map(bomb => FacileJS.createElement('div', { class: 'bomb', style: `left: ${bomb.x * 40}px; top: ${bomb.y * 40}px;` })),
+        ...(powerUps || []).map(powerUp => FacileJS.createElement('div', { class: `powerup ${powerUp.type}`, style: `left: ${powerUp.x * 40}px; top: ${powerUp.y * 40}px;` }, powerUp.type === 'oneup' ? '1UP' : powerUp.type.charAt(0).toUpperCase()))
     );
+
+    mainContainer.children.push(gameBoard);
+    mainContainer.children.push(FacileJS.createElement(StatsDisplay, me));
+
+    return mainContainer;
 };
