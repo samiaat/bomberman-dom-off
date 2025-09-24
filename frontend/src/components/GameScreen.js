@@ -2,16 +2,20 @@ import FacileJS from '../../framework/index.js';
 
 // A simple sub-component to display player stats
 const StatsDisplay = (player) => {
-    if (!player) {
-        return FacileJS.createElement('div', { class: 'stats-panel' }, '...');
+    if (player) {
+        return FacileJS.createElement('div', { class: 'stats-panel' },
+            FacileJS.createElement('h3', {}, 'Mes Stats'),
+            FacileJS.createElement('p', {}, `Vies: ${player.lives}`),
+            FacileJS.createElement('p', {}, `Bombes Max: ${player.maxBombs}`),
+            FacileJS.createElement('p', {}, `Portée Flamme: ${player.flameSize}`),
+            FacileJS.createElement('p', {}, `Vitesse: ${player.speed}`),
+        );
+    } else {
+        // Handle the case where the player has been eliminated
+        return FacileJS.createElement('div', { class: 'stats-panel eliminated' },
+            FacileJS.createElement('h3', {}, 'ÉLIMINÉ !')
+        );
     }
-    return FacileJS.createElement('div', { class: 'stats-panel' },
-        FacileJS.createElement('h3', {}, 'Mes Stats'),
-        FacileJS.createElement('p', {}, `Vies: ${player.lives}`),
-        FacileJS.createElement('p', {}, `Bombes Max: ${player.maxBombs}`),
-        FacileJS.createElement('p', {}, `Portée Flamme: ${player.flameSize}`),
-        FacileJS.createElement('p', {}, `Vitesse: ${player.speed}`),
-    );
 };
 
 export const GameScreen = (props) => {
@@ -23,6 +27,8 @@ export const GameScreen = (props) => {
     if (!gameState || !gameState.map) {
         const loadingScreen = FacileJS.createElement('div', { class: 'loading-screen' }, 'Loading game state...');
         mainContainer.children.push(loadingScreen);
+        // Still render an empty stats panel during initial load
+        mainContainer.children.push(FacileJS.createElement(StatsDisplay, null));
         return mainContainer;
     }
 
@@ -45,6 +51,7 @@ export const GameScreen = (props) => {
     );
 
     mainContainer.children.push(gameBoard);
+    // Pass the current player's data (which could be undefined) to the stats display
     mainContainer.children.push(FacileJS.createElement(StatsDisplay, me));
 
     return mainContainer;

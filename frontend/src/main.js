@@ -3,14 +3,13 @@ import { GameScreen } from './components/GameScreen.js';
 
 // --- Game State Management ---
 let gameState = null;
-let myId = null; // Will be set by the server
+let myId = null;
 
 // --- Socket.io Connection ---
 const socket = io("http://localhost:8080");
 socket.on("connect", () => { console.log("✅ Connecté au serveur Socket.IO !"); });
 socket.on("disconnect", () => { console.log("❌ Déconnecté du serveur Socket.IO"); });
 
-// Listen for the welcome message to get our unique ID
 socket.on('welcome', (data) => {
     myId = data.myId;
 });
@@ -21,6 +20,13 @@ let moveInterval = null;
 let currentDirection = null;
 const MOVE_INTERVAL_MS = 120;
 
+const stopMoving = (direction = null) => {
+    if (direction && direction !== currentDirection) return;
+    clearInterval(moveInterval);
+    moveInterval = null;
+    currentDirection = null;
+};
+
 const startMoving = (direction) => {
     if (direction === currentDirection) return;
     stopMoving();
@@ -29,13 +35,6 @@ const startMoving = (direction) => {
     moveInterval = setInterval(() => {
         socket.emit('move', { direction });
     }, MOVE_INTERVAL_MS);
-};
-
-const stopMoving = (direction = null) => {
-    if (direction && direction !== currentDirection) return;
-    clearInterval(moveInterval);
-    moveInterval = null;
-    currentDirection = null;
 };
 
 const handleKeyDown = (e) => {
@@ -65,7 +64,7 @@ const App = () => FacileJS.createElement(
         onkeydown: handleKeyDown,
         onkeyup: handleKeyUp,
         gameState: gameState,
-        myId: myId // Pass our ID to the component
+        myId: myId
     }
 );
 

@@ -51,6 +51,7 @@ io.on('connection', (socket) => {
         speed: 1, // Not used yet, but for the power-up
         flameSize: 1,
         maxBombs: 1,
+        blockPass: false,
     };
 
     // Send the player their unique ID so they know who they are
@@ -64,7 +65,11 @@ io.on('connection', (socket) => {
         if (data.direction === 'down') newY += 1;
         if (data.direction === 'left') newX -= 1;
         if (data.direction === 'right') newX += 1;
-        if (gameState.map[newY] && gameState.map[newY][newX] === 0) {
+
+        const destinationTile = gameState.map[newY] && gameState.map[newY][newX];
+        const canMove = destinationTile === 0 || (player.blockPass && destinationTile === 2);
+
+        if (canMove) {
             player.x = newX;
             player.y = newY;
 
@@ -79,6 +84,7 @@ io.on('connection', (socket) => {
                 if (powerUp.type === 'flame') player.flameSize++;
                 if (powerUp.type === 'speed') player.speed++;
                 if (powerUp.type === 'oneup') player.lives++;
+                if (powerUp.type === 'block_pass') player.blockPass = true;
 
                 // Remove power-up from game state
                 gameState.powerUps.splice(powerUpIndex, 1);
@@ -89,7 +95,12 @@ io.on('connection', (socket) => {
     socket.on('placeBomb', () => {
         const player = gameState.players[socket.id];
         if (player) {
-            gameState.bombs.push({ x: player.x, y: player.y, createdAt: Date.now() });
+            gameState.bombs.push({
+                x: player.x,
+                y: player.y,
+                createdAt: Date.now(),
+                ownerId: socket.id
+            });
         }
     });
 
@@ -103,6 +114,7 @@ io.on('connection', (socket) => {
 setInterval(() => {
     const now = Date.now();
     const explodingBombs = [];
+    const playersToRemove = new Set();
 
     // Identify bombs that should explode now
     gameState.bombs.forEach(bomb => {
@@ -112,60 +124,60 @@ setInterval(() => {
     });
 
     if (explodingBombs.length > 0) {
+        const allExplosionCoords = new Set();
+
         explodingBombs.forEach(bomb => {
-            // For now, flame size is hardcoded to 1
-            const flameSize = 1;
-            const explosionCoords = [{ x: bomb.x, y: bomb.y }]; // Center of explosion
+            const owner = gameState.players[bomb.ownerId];
+            // Use the player's flameSize stat, or default to 1 if player has disconnected
+            const flameSize = owner ? owner.flameSize : 1;
+            const explosionCoords = [{ x: bomb.x, y: bomb.y }];
 
-            // Right
-            for(let i = 1; i <= flameSize; i++) {
-                if(gameState.map[bomb.y][bomb.x + i] === 1) break; // Stop at wall
-                explosionCoords.push({ x: bomb.x + i, y: bomb.y });
-                if(gameState.map[bomb.y][bomb.x + i] === 2) break; // Stop after hitting a block
-            }
-            // Left
-            for(let i = 1; i <= flameSize; i++) {
-                if(gameState.map[bomb.y][bomb.x - i] === 1) break;
-                explosionCoords.push({ x: bomb.x - i, y: bomb.y });
-                if(gameState.map[bomb.y][bomb.x - i] === 2) break;
-            }
-            // Down
-            for(let i = 1; i <= flameSize; i++) {
-                if(gameState.map[bomb.y + i][bomb.x] === 1) break;
-                explosionCoords.push({ x: bomb.x, y: bomb.y + i });
-                if(gameState.map[bomb.y + i][bomb.x] === 2) break;
-            }
-            // Up
-            for(let i = 1; i <= flameSize; i++) {
-                if(gameState.map[bomb.y - i][bomb.x] === 1) break;
-                explosionCoords.push({ x: bomb.x, y: bomb.y - i });
-                if(gameState.map[bomb.y - i][bomb.x] === 2) break;
-            }
+            // Calculate explosion coordinates in all 4 directions
+            for(let i = 1; i <= flameSize; i++) { if(gameState.map[bomb.y][bomb.x + i] === 1) break; explosionCoords.push({ x: bomb.x + i, y: bomb.y }); if(gameState.map[bomb.y][bomb.x + i] === 2) break; }
+            for(let i = 1; i <= flameSize; i++) { if(gameState.map[bomb.y][bomb.x - i] === 1) break; explosionCoords.push({ x: bomb.x - i, y: bomb.y }); if(gameState.map[bomb.y][bomb.x - i] === 2) break; }
+            for(let i = 1; i <= flameSize; i++) { if(gameState.map[bomb.y + i] && gameState.map[bomb.y + i][bomb.x] === 1) break; explosionCoords.push({ x: bomb.x, y: bomb.y + i }); if(gameState.map[bomb.y + i] && gameState.map[bomb.y + i][bomb.x] === 2) break; }
+            for(let i = 1; i <= flameSize; i++) { if(gameState.map[bomb.y - i] && gameState.map[bomb.y - i][bomb.x] === 1) break; explosionCoords.push({ x: bomb.x, y: bomb.y - i }); if(gameState.map[bomb.y - i] && gameState.map[bomb.y - i][bomb.x] === 2) break; }
 
-            // Destroy blocks and potentially spawn power-ups
-            const powerUpTypes = ['bombs', 'flame', 'speed', 'oneup'];
-            const POWERUP_CHANCE = 0.5; // 50% chance
+            explosionCoords.forEach(c => allExplosionCoords.add(`${c.x},${c.y}`));
+        });
 
-            explosionCoords.forEach(coord => {
-                if (gameState.map[coord.y] && gameState.map[coord.y][coord.x] === 2) {
-                    gameState.map[coord.y][coord.x] = 0; // Turn block into floor
-
-                    if (Math.random() < POWERUP_CHANCE) {
-                        const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-                        gameState.powerUps.push({
-                            x: coord.x,
-                            y: coord.y,
-                            type: type,
-                        });
-                    }
+        // Check for player damage
+        for (const playerId in gameState.players) {
+            const player = gameState.players[playerId];
+            const playerCoord = `${player.x},${player.y}`;
+            if (allExplosionCoords.has(playerCoord)) {
+                player.lives--;
+                console.log(`Player ${playerId} was hit! Lives remaining: ${player.lives}`);
+                if (player.lives <= 0) {
+                    playersToRemove.add(playerId);
                 }
-            });
+            }
+        }
+
+        // Destroy blocks and spawn power-ups
+        const powerUpTypes = ['bombs', 'flame', 'speed', 'oneup', 'block_pass'];
+        const POWERUP_CHANCE = 0.5;
+        allExplosionCoords.forEach(coordStr => {
+            const [x, y] = coordStr.split(',').map(Number);
+            if (gameState.map[y] && gameState.map[y][x] === 2) {
+                gameState.map[y][x] = 0;
+                if (Math.random() < POWERUP_CHANCE) {
+                    const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+                    gameState.powerUps.push({ x, y, type });
+                }
+            }
         });
 
         // Remove the exploded bombs from the game state
         const explodedBombSet = new Set(explodingBombs);
         gameState.bombs = gameState.bombs.filter(bomb => !explodedBombSet.has(bomb));
     }
+
+    // Remove dead players
+    playersToRemove.forEach(id => {
+        console.log(`Player ${id} has been eliminated.`);
+        delete gameState.players[id];
+    });
 
     // Broadcast the state to all clients
     io.emit('gameState', gameState);
