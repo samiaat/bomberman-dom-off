@@ -1,79 +1,121 @@
 import FacileJS from '../framework/index.js';
 import { GameScreen } from './components/GameScreen.js';
+import { HomeScreen } from './components/HomeScreen.js';
+import { WaitingRoom } from './components/WaitingRoom.js';
+import { getAppState, joinGame, movePlayer, placeBomb, sendChatMessage } from './game.js';
+import * as renderer from './renderer.js';
 
-// --- Game State Management ---
-let gameState = null;
-let myId = null;
+// --- Input State ---
+const keysPressed = {};
+const keysToTrack = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
 
-// --- Socket.io Connection ---
-const socket = io("http://localhost:8080");
-socket.on("connect", () => { console.log("✅ Connecté au serveur Socket.IO !"); });
-socket.on("disconnect", () => { console.log("❌ Déconnecté du serveur Socket.IO"); });
+function handleKeyDown(e) {
+    if (keysToTrack.includes(e.key)) e.preventDefault();
+    keysPressed[e.key] = true;
+}
 
-socket.on('welcome', (data) => {
-    myId = data.myId;
-});
+function handleKeyUp(e) {
+    if (keysToTrack.includes(e.key)) e.preventDefault();
+    keysPressed[e.key] = false;
+}
 
-// --- Keyboard Input Handling for Tile-based Movement ---
-const keyMap = { 'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right' };
-let moveInterval = null;
-let currentDirection = null;
-const MOVE_INTERVAL_MS = 120;
+// --- Main App Component (The "Shell") ---
+const App = () => {
+    const { screen, gameState, myId, winner } = getAppState();
 
-const stopMoving = (direction = null) => {
-    if (direction && direction !== currentDirection) return;
-    clearInterval(moveInterval);
-    moveInterval = null;
-    currentDirection = null;
-};
-
-const startMoving = (direction) => {
-    if (direction === currentDirection) return;
-    stopMoving();
-    currentDirection = direction;
-    socket.emit('move', { direction });
-    moveInterval = setInterval(() => {
-        socket.emit('move', { direction });
-    }, MOVE_INTERVAL_MS);
-};
-
-const handleKeyDown = (e) => {
-    const direction = keyMap[e.key];
-    if (direction) {
-        e.preventDefault();
-        startMoving(direction);
+    switch (screen) {
+        case 'waiting':
+            return FacileJS.createElement(WaitingRoom, {
+                players: gameState.players,
+                countdown: gameState.countdown,
+                status: gameState.status,
+                chatMessages: gameState.chatMessages,
+                myId: myId,
+            });
+        case 'game':
+            return FacileJS.createElement(GameScreen, {
+                gameState,
+                myId,
+                onkeydown: handleKeyDown,
+                onkeyup: handleKeyUp
+            });
+        case 'gameover':
+            return FacileJS.createElement('div', { class: 'game-over-screen' },
+                FacileJS.createElement('h1', {}, 'Game Over'),
+                winner ? FacileJS.createElement('h2', {}, `${winner.nickname} wins!`) : FacileJS.createElement('h2', {}, 'It\'s a draw!'),
+                FacileJS.createElement('p', {}, 'Returning to lobby...'),
+            );
+        case 'home':
+        default:
+            return FacileJS.createElement(HomeScreen, { onNicknameSubmit: joinGame });
     }
 };
 
-const handleKeyUp = (e) => {
-    const direction = keyMap[e.key];
-    if (direction) {
-        e.preventDefault();
-        stopMoving(direction);
-    }
-    if (e.key === ' ') {
-        e.preventDefault();
-        socket.emit('placeBomb');
-    }
-};
-
-// --- App Component ---
-const App = () => FacileJS.createElement(
-    GameScreen,
-    {
-        onkeydown: handleKeyDown,
-        onkeyup: handleKeyUp,
-        gameState: gameState,
-        myId: myId
-    }
-);
-
-// --- App Initialization & Re-rendering ---
+// --- App Initialization ---
 const root = document.getElementById('root');
-const updateApp = FacileJS.createApp(App, root);
+const patchApp = FacileJS.createApp(App, root);
 
-// --- Game State Update Listener ---
-socket.on('gameState', (newState) => {
-    gameState = newState;
-    updateApp();
-});
+// --- High-Performance Game Loop ---
+const TICK_RATE = 60;
+const MS_PER_TICK = 1000 / TICK_RATE;
+let lag = 0;
+let lastTime = performance.now();
+
+
+function update() {
+    const appState = getAppState();
+    if (appState.screen !== 'game' || !appState.gameState.players[appState.myId]) return;
+
+    // Handle bomb placement (only once per press)
+    if (keysPressed[' ']) {
+        placeBomb();
+        keysPressed[' '] = false; // Consume the key press
+    }
+
+    // Handle movement
+    let direction = null;
+    if (keysPressed['ArrowUp']) direction = 'up';
+    else if (keysPressed['ArrowDown']) direction = 'down';
+    else if (keysPressed['ArrowLeft']) direction = 'left';
+    else if (keysPressed['ArrowRight']) direction = 'right';
+
+    if (direction) {
+        movePlayer(direction);
+    }
+}
+
+
+function render() {
+    // 1. Render dynamic entities via direct DOM manipulation (very fast)
+    const { players } = getAppState().gameState;
+    if (players) {
+        Object.values(players).forEach(p => renderer.updatePlayerPosition(p));
+    }
+
+    // 2. Render the UI "shell" via the framework (slower, but only for non-critical UI)
+    patchApp();
+}
+
+// The main loop that orchestrates updates and rendering.
+function gameLoop(currentTime) {
+    requestAnimationFrame(gameLoop);
+
+    const elapsedTime = currentTime - lastTime;
+    lastTime = currentTime;
+    lag += elapsedTime;
+
+    // If the tab was inactive, prevent the "death spiral" by resetting lag.
+    if (lag > 1000) {
+        lag = 0;
+    }
+
+   
+    while (lag >= MS_PER_TICK) {
+        update();
+        lag -= MS_PER_TICK;
+    }
+
+    render();
+}
+
+requestAnimationFrame(gameLoop);

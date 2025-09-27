@@ -1,3 +1,5 @@
+import FacileJS from '../framework/index.js';
+
 // This object will hold direct references to the layer container elements
 const layers = {
     powerups: null,
@@ -9,28 +11,48 @@ const layers = {
 // This will store a map of entity ID -> DOM element
 const entityElements = new Map();
 
-function createPlayerElement(player) {
-    const el = document.createElement('div');
-    el.className = 'player';
-    el.style.backgroundColor = player.color;
-    // All other styles are defined in style.css, we only set dynamic properties
-    el.style.transform = `translate(${player.x * 40}px, ${player.y * 40}px)`;
+
+function manualRender(vNode) {
+    const el = document.createElement(vNode.tag);
+
+    // Apply props (like class, style, etc.)
+    for (const [key, value] of Object.entries(vNode.props)) {
+        el.setAttribute(key, value);
+    }
+
+    // Handle children (for text content in power-ups)
+    for (const child of vNode.children) {
+        if (typeof child === 'string' || typeof child === 'number') {
+            el.appendChild(document.createTextNode(child.toString()));
+        }
+    }
+
     return el;
+}
+
+
+function createPlayerElement(player) {
+    const vNode = FacileJS.createElement('div', {
+        class: 'player',
+        style: `background-color: ${player.color}; transform: translate(${player.x * 40}px, ${player.y * 40}px);`
+    });
+    return manualRender(vNode);
 }
 
 function createBombElement(bomb) {
-    const el = document.createElement('div');
-    el.className = 'bomb';
-    el.style.transform = `translate(${bomb.x * 40}px, ${bomb.y * 40}px)`;
-    return el;
+    const vNode = FacileJS.createElement('div', {
+        class: 'bomb',
+        style: `transform: translate(${bomb.x * 40}px, ${bomb.y * 40}px);`
+    });
+    return manualRender(vNode);
 }
 
 function createPowerupElement(powerup) {
-    const el = document.createElement('div');
-    el.className = `powerup ${powerup.type}`;
-    el.textContent = powerup.type === 'oneup' ? '1UP' : powerup.type.charAt(0).toUpperCase();
-    el.style.transform = `translate(${powerup.x * 40}px, ${powerup.y * 40}px)`;
-    return el;
+    const vNode = FacileJS.createElement('div', {
+        class: `powerup ${powerup.type}`,
+        style: `transform: translate(${powerup.x * 40}px, ${powerup.y * 40}px);`
+    }, powerup.type === 'oneup' ? '1UP' : powerup.type.charAt(0).toUpperCase());
+    return manualRender(vNode);
 }
 
 export function registerLayer(layerName, element) {
@@ -69,7 +91,6 @@ export function updatePlayerPosition(player) {
         const element = entityElements.get(player.id);
         element.style.transform = `translate(${player.x * 40}px, ${player.y * 40}px)`;
     } else {
-        // If player doesn't exist, create it. This can happen on game start.
         addEntity('players', player);
     }
 }
@@ -92,14 +113,11 @@ export function clearAllEntities() {
 export function renderExplosions(explosions) {
     clearLayer('explosions');
     explosions.forEach(exp => {
-        const el = document.createElement('div');
-        el.className = 'explosion';
-        el.style.position = 'absolute';
-        el.style.width = '40px';
-        el.style.height = '40px';
-        el.style.backgroundColor = 'orange';
-        el.style.opacity = '0.8';
-        el.style.transform = `translate(${exp.x * 40}px, ${exp.y * 40}px)`;
+        const vNode = FacileJS.createElement('div', {
+            class: 'explosion',
+            style: `transform: translate(${exp.x * 40}px, ${exp.y * 40}px); background-color: orange; opacity: 0.8;`
+        });
+        const el = manualRender(vNode);
         layers.explosions.appendChild(el);
     });
 }

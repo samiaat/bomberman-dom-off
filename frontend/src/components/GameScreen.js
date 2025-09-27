@@ -54,8 +54,6 @@ export const GameScreen = (props) => {
     }
 
     // --- Assemble the Game Board ---
-    // The component now only renders the static map and empty containers for dynamic entities.
-    // The `ref` prop gives us a direct DOM reference to the layer element, which we pass to our renderer.
     const gameBoard = FacileJS.createElement('div', {
             class: 'game-board',
             onkeydown: onkeydown,
@@ -71,8 +69,6 @@ export const GameScreen = (props) => {
     );
 
     // Add panels and game board to the layout
-    // Note: We still pass `players` to PlayerPanel so it can display the list of players.
-    // This is a UI component and its re-render is not a performance bottleneck.
     gameLayout.children.push(FacileJS.createElement(PlayerPanel, { players, myId }));
     gameLayout.children.push(gameBoard);
     gameLayout.children.push(FacileJS.createElement(StatsDisplay, me));

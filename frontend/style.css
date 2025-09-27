@@ -12,11 +12,26 @@ body {
 }
 
 .game-board {
+    width: 600px; /* 15 tiles * 40px */
+    height: 520px; /* 13 tiles * 40px */
+    border: 5px solid #b23a48;
+    position: relative;
+}
+
+/* NEW: Layers now stack on top of each other inside the board */
+.game-board > div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* NEW: The map layer itself is now the grid container */
+.map-layer {
     display: grid;
     grid-template-columns: repeat(15, 40px);
     grid-template-rows: repeat(13, 40px);
-    border: 5px solid #b23a48; /* Use the brighter red for the border */
-    position: relative;
 }
 
 .tile {
@@ -42,7 +57,6 @@ body {
     position: absolute;
     width: 30px;
     height: 30px;
-    background-color: #ff85b3; /* Bright candy pink for the player */
     border-radius: 50%;
     border: 2px solid white;
     margin: 5px;
@@ -94,11 +108,66 @@ body {
     font-size: 16px;
 }
 
-
-.main-container {
+.game-layout {
     display: flex;
-    align-items: flex-start;
-    gap: 30px;
+    align-items: center; /* Vertically center the panels with the board */
+    justify-content: center;
+    gap: 20px;
+}
+
+.player-panel {
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 2px solid #b23a48;
+    color: #fdeaf1;
+    width: 150px; /* A bit smaller */
+}
+
+.player-panel h3 {
+    margin-top: 0;
+    color: #ff85b3;
+    text-align: center;
+    border-bottom: 1px solid #b23a48;
+    padding-bottom: 5px;
+}
+
+.player-color-card {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    padding: 5px;
+    border-radius: 5px;
+    border: 2px solid transparent; /* Base border */
+    transition: all 0.3s;
+}
+
+.player-color-indicator {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+/* Highlight the current player's card */
+.player-color-card.me {
+    border-color: #ff85b3;
+    background-color: rgba(255, 133, 179, 0.2);
+}
+
+@keyframes pulse {
+    0% {
+        border-color: #b23a48;
+        box-shadow: 0 0 5px rgba(178, 58, 72, 0.5);
+    }
+    50% {
+        border-color: #ff85b3;
+        box-shadow: 0 0 20px rgba(255, 133, 179, 0.8);
+    }
+    100% {
+        border-color: #b23a48;
+        box-shadow: 0 0 5px rgba(178, 58, 72, 0.5);
+    }
 }
 
 .stats-panel {
@@ -108,6 +177,7 @@ body {
     border: 2px solid #b23a48;
     color: #fdeaf1;
     width: 200px;
+    animation: pulse 2s infinite ease-in-out; /* Add the animation here */
 }
 
 .stats-panel h3 {
@@ -120,4 +190,213 @@ body {
 
 .stats-panel p {
     margin: 5px 0;
+}
+
+.stats-panel.eliminated {
+    background-color: #444;
+    border-color: #666;
+}
+
+.stats-panel.eliminated h3 {
+    color: #ff5555;
+}
+
+/* Home and Waiting Screens */
+.home-screen, .waiting-room {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 2px solid #b23a48;
+    color: #fdeaf1;
+    text-align: center;
+    width: 500px;
+    animation: pulse 2.5s infinite ease-in-out; /* Add animation to the whole panel */
+}
+
+.home-screen h1, .waiting-room h2 {
+    color: #ff85b3;
+    margin-top: 0;
+    font-size: 3em;
+    text-shadow: 2px 2px 4px #000;
+}
+
+.home-screen h1 {
+    animation: pulse-title 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-title {
+    0% {
+        text-shadow: 2px 2px 4px #000, 0 0 5px rgba(255, 133, 179, 0.5);
+    }
+    50% {
+        text-shadow: 2px 2px 4px #000, 0 0 30px rgba(255, 133, 179, 1);
+    }
+    100% {
+        text-shadow: 2px 2px 4px #000, 0 0 5px rgba(255, 133, 179, 0.5);
+    }
+}
+
+.home-screen form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.home-screen input {
+    padding: 10px;
+    border-radius: 5px;
+    border: 2px solid #8c2f39;
+    background-color: #5b3f4d;
+    color: white;
+    font-size: 18px;
+    text-align: center;
+    width: 300px;
+}
+
+.home-screen button {
+    padding: 12px 25px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ff85b3;
+    color: #3d1f2d;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.home-screen button:hover {
+    background-color: #fdeaf1;
+}
+
+.waiting-room p {
+    font-size: 1.2em;
+}
+
+.waiting-room .countdown {
+    font-size: 2em;
+    font-weight: bold;
+    color: #50e3c2;
+    margin-top: 20px;
+    /* Add a subtle animation to the text shadow to indicate smoothness */
+    animation: pulse-text 2s infinite ease-in-out;
+}
+
+/* --- Chat Styles --- */
+.waiting-room-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.chat-container {
+    width: 400px;
+    height: 500px; /* Fixed height */
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 2px solid #b23a48;
+    padding: 15px;
+    color: #fdeaf1;
+}
+
+.chat-container h3 {
+    margin-top: 0;
+    text-align: center;
+    color: #ff85b3;
+    border-bottom: 1px solid #b23a48;
+    padding-bottom: 10px;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    overflow-y: auto; /* Make messages scrollable */
+    display: flex;
+    flex-direction: column; /* Display messages from top to bottom */
+    /* The auto-scrolling will be handled by JavaScript */
+}
+
+.chat-message {
+    margin: 5px 0;
+    padding: 8px;
+    border-radius: 5px;
+    animation: fade-in 0.5s ease;
+}
+
+.chat-message.my-message {
+    background-color: rgba(255, 133, 179, 0.15);
+    align-self: flex-end;
+}
+
+.chat-form {
+    display: flex;
+    margin-top: 10px;
+    gap: 10px;
+}
+
+.chat-form input {
+    flex-grow: 1;
+    padding: 10px;
+    border-radius: 5px;
+    border: 2px solid #8c2f39;
+    background-color: #5b3f4d;
+    color: white;
+    font-size: 16px;
+}
+
+.chat-form button {
+    padding: 10px 15px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ff85b3;
+    color: #3d1f2d;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.chat-form button:hover {
+    background-color: #fdeaf1;
+}
+
+.player-list {
+    text-align: left;
+    margin-top: 20px;
+}
+
+.player-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse-text {
+    0% {
+        text-shadow: 0 0 5px rgba(80, 227, 194, 0.5);
+    }
+    50% {
+        text-shadow: 0 0 20px rgba(80, 227, 194, 1);
+    }
+    100% {
+        text-shadow: 0 0 5px rgba(80, 227, 194, 0.5);
+    }
 }
