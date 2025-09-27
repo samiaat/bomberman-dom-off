@@ -1,5 +1,6 @@
 import FacileJS from '../../framework/index.js';
 import { PlayerPanel } from './PlayerPanel.js';
+import { registerLayer } from '../renderer.js';
 
 // A simple sub-component to display player stats
 const StatsDisplay = (player) => {
@@ -12,30 +13,49 @@ const StatsDisplay = (player) => {
             FacileJS.createElement('p', {}, `Vitesse: ${player.speed}`),
         );
     } else {
-        // Handle the case where the player has been eliminated
         return FacileJS.createElement('div', { class: 'stats-panel eliminated' },
             FacileJS.createElement('h3', {}, 'ÉLIMINÉ !')
         );
     }
 };
 
+// --- Memoization Cache for the Map ---
+let cachedMapVNodes = null;
+let lastMapSignature = '';
+
+const tileTypeToClass = { 0: 'floor', 1: 'wall', 2: 'block' };
+
 export const GameScreen = (props) => {
     const { gameState, onkeydown, onkeyup, myId } = props;
 
-    // Main layout container for the game
     const gameLayout = FacileJS.createElement('div', { class: 'game-layout' });
 
-    if (!gameState || !gameState.map) {
+    if (!gameState || !gameState.map || gameState.map.length === 0) {
         const loadingScreen = FacileJS.createElement('div', { class: 'loading-screen' }, 'Loading game state...');
         gameLayout.children.push(loadingScreen);
         return gameLayout;
     }
 
-    const { map, players, bombs, powerUps } = gameState;
+    const { map, players } = gameState;
     const me = players[myId];
 
-    const tileTypeToClass = { 0: 'floor', 1: 'wall', 2: 'block' };
+    // --- Map Caching Logic ---
+    const currentMapSignature = map.map(row => row.join('')).join(';');
+    let mapVNodes;
+    if (currentMapSignature === lastMapSignature) {
+        mapVNodes = cachedMapVNodes;
+    } else {
+        console.log("Map has changed, re-rendering tiles...");
+        mapVNodes = map.map(row =>
+            row.map(tile => FacileJS.createElement('div', { class: `tile ${tileTypeToClass[tile]}` }))
+        ).flat();
+        cachedMapVNodes = mapVNodes;
+        lastMapSignature = currentMapSignature;
+    }
 
+    // --- Assemble the Game Board ---
+    // The component now only renders the static map and empty containers for dynamic entities.
+    // The `ref` prop gives us a direct DOM reference to the layer element, which we pass to our renderer.
     const gameBoard = FacileJS.createElement('div', {
             class: 'game-board',
             onkeydown: onkeydown,
@@ -43,19 +63,19 @@ export const GameScreen = (props) => {
             tabindex: "0",
             autofocus: true
         },
-        ...map.map(row => row.map(tile => FacileJS.createElement('div', { class: `tile ${tileTypeToClass[tile]}` }))).flat(),
-        ...Object.values(players).map(player => FacileJS.createElement('div', {
-            class: 'player',
-            style: `left: ${player.x * 40}px; top: ${player.y * 40}px; background-color: ${player.color};`
-        })),
-        ...(bombs || []).map(bomb => FacileJS.createElement('div', { class: 'bomb', style: `left: ${bomb.x * 40}px; top: ${bomb.y * 40}px;` })),
-        ...(powerUps || []).map(powerUp => FacileJS.createElement('div', { class: `powerup ${powerUp.type}`, style: `left: ${powerUp.x * 40}px; top: ${powerUp.y * 40}px;` }, powerUp.type === 'oneup' ? '1UP' : powerUp.type.charAt(0).toUpperCase()))
+        FacileJS.createElement('div', { class: 'map-layer' }, ...mapVNodes),
+        FacileJS.createElement('div', { class: 'powerups-layer', ref: (el) => registerLayer('powerups', el) }),
+        FacileJS.createElement('div', { class: 'bombs-layer', ref: (el) => registerLayer('bombs', el) }),
+        FacileJS.createElement('div', { class: 'players-layer', ref: (el) => registerLayer('players', el) }),
+        FacileJS.createElement('div', { class: 'explosions-layer', ref: (el) => registerLayer('explosions', el) })
     );
 
     // Add panels and game board to the layout
+    // Note: We still pass `players` to PlayerPanel so it can display the list of players.
+    // This is a UI component and its re-render is not a performance bottleneck.
     gameLayout.children.push(FacileJS.createElement(PlayerPanel, { players, myId }));
     gameLayout.children.push(gameBoard);
-    gameLayout.children.push(FacileJS.createElement(StatsDisplay, me)); // Keep stats on the right
+    gameLayout.children.push(FacileJS.createElement(StatsDisplay, me));
 
     return gameLayout;
 };
