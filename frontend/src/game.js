@@ -1,91 +1,122 @@
 import * as renderer from './renderer.js';
 
+// --- Input State (maintenu ici) ---
+const keysPressed = {};
+const keysToTrack = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
+
 // --- Game State ---
+// État global de l'application
 let appState = {
-    screen: 'home', // 'home', 'waiting', 'game', 'gameover'
+    screen: 'home', 
     gameState: {
-        status: 'waiting',
-        countdown: null,
-        map: [],
-        players: {},
-        bombs: [],
-        powerUps: [],
-        chatMessages: [],
+        status: 'waiting',   
+        countdown: null,     
+        map: [],            
+        players: {},         
+        bombs: [],           
+        powerUps: [],        
+        chatMessages: [],    
     },
-    myId: null,
-    winner: null,
+    myId: null,   
+    winner: null, 
 };
 
 // --- Socket.io Connection ---
-const socket = io("http://localhost:8080", { autoConnect: false });
+
+const socket = io(":8080", { autoConnect: false, reconnection: false });
 
 // --- State Management ---
-// We still update the state for non-rendering logic (like UI panels)
 function updateGameState(newPartialState) {
     appState.gameState = { ...appState.gameState, ...newPartialState };
 }
+
+function stopAllMovement() {
+    for (const key in keysPressed) {   // Parcours toutes les touches enregistrées
+        if (keysPressed[key]) {         // Si la touche est pressée
+            let direction = null;
+            if (key === 'ArrowUp') direction = 'up';
+            if (key === 'ArrowDown') direction = 'down';
+            if (key === 'ArrowLeft') direction = 'left';
+            if (key === 'ArrowRight') direction = 'right';
+
+            if (direction) {
+                stopMoving(direction); // On envoie l'événement pour arrêter le mouvement
+            }
+            keysPressed[key] = false;  // On marque la touche comme relâchée
+        }
+    }
+}
+
 function updateScreen(newScreen) {
-    appState.screen = newScreen;
+    if (appState.screen === 'game' && newScreen !== 'game') {
+        stopAllMovement();
+    }
+    appState.screen = newScreen; 
 }
 
 // --- Event Listeners ---
 socket.on("connect", () => console.log("✅ Connecté au serveur Socket.IO !"));
 
+// Quand la connexion au serveur est perdue
 socket.on("disconnect", () => {
     console.log("❌ Déconnecté du serveur Socket.IO");
-    updateScreen('home');
-    renderer.clearAllEntities();
+    updateScreen('home');           
+    renderer.clearAllEntities();    
 });
 
 socket.on('welcome', ({ myId, initialState }) => {
     appState.myId = myId;
-    appState.gameState = initialState;
-    updateScreen('waiting');
+    appState.gameState = initialState; 
+    updateScreen('waiting');           
 });
 
+// Quand un nouveau joueur rejoint
 socket.on('playerJoined', (newPlayer) => {
     updateGameState({ players: { ...appState.gameState.players, [newPlayer.id]: newPlayer } });
     renderer.addEntity('players', newPlayer);
 });
 
+// Quand un joueur quitte
 socket.on('playerLeft', ({ id }) => {
-    const newPlayers = { ...appState.gameState.players };
-    delete newPlayers[id];
-    updateGameState({ players: newPlayers });
-    renderer.removeEntity(id);
+    const newPlayers = { ...appState.gameState.players }; 
+    delete newPlayers[id];                              
+    updateGameState({ players: newPlayers });           
+    renderer.removeEntity(id);                           
 });
 
+// Mise à jour du lobby (compteur ou statut)
 socket.on('lobbyUpdate', ({ status, countdown }) => {
     updateGameState({ status, countdown });
 });
 
+// Quand le jeu commence
 socket.on('gameStart', ({ map, players }) => {
-    renderer.clearAllEntities();
-    updateGameState({ map, players, bombs: [], powerUps: [] });
-    Object.values(players).forEach(p => renderer.addEntity('players', p));
-    updateScreen('game');
+    renderer.clearAllEntities(); 
+    updateGameState({ map, players, bombs: [], powerUps: [] }); 
+    updateScreen('game'); 
 });
 
-// Player positions are updated in the render loop, not here.
-// We just update the data model.
-socket.on('playerMoved', ({ id, x, y }) => {
-    if (appState.gameState.players[id]) {
-        appState.gameState.players[id].x = x;
-        appState.gameState.players[id].y = y;
-    }
+// Mise à jour des positions des joueurs (sans le rendu)
+socket.on('playersMoved', (playersToUpdate) => {
+    playersToUpdate.forEach(({ id, x, y }) => {
+        if (appState.gameState.players[id]) {
+            appState.gameState.players[id].x = x;
+            appState.gameState.players[id].y = y;
+        }
+    });
 });
 
+// Quand une bombe est posée
 socket.on('bombPlaced', (bomb) => {
     updateGameState({ bombs: [...appState.gameState.bombs, bomb] });
-    renderer.addEntity('bombs', bomb);
+    renderer.addEntity('bombs', bomb);                              
 });
 
+// Quand une explosion se produit
 socket.on('explosion', ({ coords, destroyedBlocks, newPowerUps, damagedPlayers, explodedBombIds }) => {
-    // Update map data
     const newMap = appState.gameState.map.map(row => [...row]);
     destroyedBlocks.forEach(({ x, y }) => { newMap[y][x] = 0; });
 
-    // Update player data
     const newPlayers = { ...appState.gameState.players };
     damagedPlayers.forEach(({ id, lives }) => {
         if (newPlayers[id]) {
@@ -93,7 +124,7 @@ socket.on('explosion', ({ coords, destroyedBlocks, newPowerUps, damagedPlayers, 
         }
     });
 
-    // Update state for UI panels
+    // Mise à jour de l'état pour l'UI
     updateGameState({
         map: newMap,
         powerUps: [...appState.gameState.powerUps, ...newPowerUps],
@@ -101,56 +132,60 @@ socket.on('explosion', ({ coords, destroyedBlocks, newPowerUps, damagedPlayers, 
         bombs: appState.gameState.bombs.filter(b => !explodedBombIds.includes(b.id)),
     });
 
-    // Update renderer
+    // Mise à jour du rendu
     explodedBombIds.forEach(id => renderer.removeEntity(id));
     newPowerUps.forEach(p => renderer.addEntity('powerups', p));
     renderer.renderExplosions(coords);
     setTimeout(() => {
-        renderer.clearLayer('explosions');
+        renderer.clearLayer('explosions'); // On supprime les explosions après 400ms
     }, 400);
 });
 
+// Quand un joueur ramasse un power-up
 socket.on('powerUpCollected', ({ powerUpId, playerId, newStats }) => {
     updateGameState({
-        powerUps: appState.gameState.powerUps.filter(p => p.id !== powerUpId),
-        players: { ...appState.gameState.players, [playerId]: { ...appState.gameState.players[playerId], ...newStats } }
+        powerUps: appState.gameState.powerUps.filter(p => p.id !== powerUpId), 
+        players: { 
+            ...appState.gameState.players, 
+            [playerId]: { ...appState.gameState.players[playerId], ...newStats } 
+        }
     });
-    renderer.removeEntity(powerUpId);
+    renderer.removeEntity(powerUpId); 
 });
 
-socket.on('playerDied', ({ id }) => {
+// Quand un joueur meurt
+socket.on('playerDied', ({ player }) => {
     const newPlayers = { ...appState.gameState.players };
-    delete newPlayers[id];
-    updateGameState({ players: newPlayers });
-    renderer.removeEntity(id);
-});
-
-socket.on('gameOver', ({ winner }) => {
-    appState.winner = winner;
-    updateScreen('gameover');
-});
-
-socket.on('reset', () => {
-    renderer.clearAllEntities();
-    updateGameState({ status: 'waiting', countdown: null, map: [], players: {}, bombs: [], powerUps: [], chatMessages: [] });
-    appState.winner = null;
-    updateScreen('home');
-});
-
-socket.on('newChatMessage', (message) => {
-    // Ensure chatMessages is always an array before trying to spread it.
-    const currentMessages = appState.gameState.chatMessages || [];
-    const newMessages = [...currentMessages, message];
-    // Keep only the last 50 messages to avoid performance issues
-    if (newMessages.length > 50) {
-        newMessages.shift();
+    if (newPlayers[player.id]) {
+        newPlayers[player.id] = player; 
     }
+    updateGameState({ players: newPlayers });
+    renderer.markAsEliminated(player.id); 
+});
+
+// Quand le jeu est terminé
+socket.on('gameOver', ({ winner }) => {
+    appState.winner = winner; 
+    updateScreen('gameover'); 
+});
+
+// Quand le serveur demande un reset
+socket.on('reset', () => {
+    socket.disconnect(); 
+});
+
+// Nouveaux messages de chat
+socket.on('newChatMessage', (message) => {
+    const currentMessages = appState.gameState.chatMessages || [];
+    const newMessages = [...currentMessages, message]; 
+    if (newMessages.length > 50) { newMessages.shift(); } 
     updateGameState({ chatMessages: newMessages });
 });
 
 // --- Actions ---
+// Rejoindre une partie
 export function joinGame(nickname) {
-    if (!socket.connected) {
+    if (!socket.connected && nickname && nickname.trim().length > 0 && nickname.length <= 20) {
         socket.connect();
         socket.once('connect', () => socket.emit('joinGame', { nickname }));
     } else {
@@ -158,19 +193,21 @@ export function joinGame(nickname) {
     }
 }
 
-export function placeBomb() {
-    socket.emit('placeBomb');
-}
+// Poser une bombe
+export function placeBomb() { socket.emit('placeBomb'); }
 
-export function movePlayer(direction) {
-    socket.emit('move', { direction });
-}
+// Commencer à se déplacer
+export function startMoving(direction) { socket.emit('startMoving', { direction }); }
 
-export function sendChatMessage(message) {
-    socket.emit('chatMessage', message);
-}
+// Arrêter le mouvement
+export function stopMoving(direction) { socket.emit('stopMoving', { direction }); }
+
+// Envoyer un message de chat
+export function sendChatMessage(message) { socket.emit('chatMessage', message); }
+
+// Redemarrer la partie (côté client)
+export function requestRestart() { socket.disconnect(); }
 
 // --- Getters ---
-export function getAppState() {
-    return appState;
-}
+// Récupérer l'état complet de l'application
+export function getAppState() { return appState; }

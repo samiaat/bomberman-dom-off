@@ -1,6 +1,6 @@
 import FacileJS from '../framework/index.js';
 
-// This object will hold direct references to the layer container elements
+// --- Couches de Rendu (Layers) ---
 const layers = {
     powerups: null,
     bombs: null,
@@ -8,35 +8,19 @@ const layers = {
     explosions: null,
 };
 
-// This will store a map of entity ID -> DOM element
+// --- Cache des Éléments DOM ---
 const entityElements = new Map();
 
-
-function manualRender(vNode) {
-    const el = document.createElement(vNode.tag);
-
-    // Apply props (like class, style, etc.)
-    for (const [key, value] of Object.entries(vNode.props)) {
-        el.setAttribute(key, value);
-    }
-
-    // Handle children (for text content in power-ups)
-    for (const child of vNode.children) {
-        if (typeof child === 'string' || typeof child === 'number') {
-            el.appendChild(document.createTextNode(child.toString()));
-        }
-    }
-
-    return el;
-}
-
+// --- Fonctions de Création d'Éléments ---
+// Ces fonctions créent maintenant des éléments DOM en utilisant la fonction `render` du framework,
+// ce qui garantit une cohérence totale dans toute l'application.
 
 function createPlayerElement(player) {
     const vNode = FacileJS.createElement('div', {
         class: 'player',
         style: `background-color: ${player.color}; transform: translate(${player.x * 40}px, ${player.y * 40}px);`
     });
-    return manualRender(vNode);
+    return FacileJS.render(vNode);
 }
 
 function createBombElement(bomb) {
@@ -44,7 +28,7 @@ function createBombElement(bomb) {
         class: 'bomb',
         style: `transform: translate(${bomb.x * 40}px, ${bomb.y * 40}px);`
     });
-    return manualRender(vNode);
+    return FacileJS.render(vNode);
 }
 
 function createPowerupElement(powerup) {
@@ -52,8 +36,10 @@ function createPowerupElement(powerup) {
         class: `powerup ${powerup.type}`,
         style: `transform: translate(${powerup.x * 40}px, ${powerup.y * 40}px);`
     }, powerup.type === 'oneup' ? '1UP' : powerup.type.charAt(0).toUpperCase());
-    return manualRender(vNode);
+    return FacileJS.render(vNode);
 }
+
+// --- Fonctions exportées pour gérer le rendu ---
 
 export function registerLayer(layerName, element) {
     if (element) {
@@ -63,7 +49,15 @@ export function registerLayer(layerName, element) {
 
 export function addEntity(entityType, entity) {
     const layerName = entityType;
-    if (!layers[layerName] || !entity || !entity.id || entityElements.has(entity.id)) return;
+    if (!layers[layerName] || !entity || !entity.id) return;
+
+    if (entityElements.has(entity.id)) {
+        if (layerName === 'players') {
+            const element = entityElements.get(entity.id);
+            element.classList.remove('eliminated');
+        }
+        return;
+    }
 
     let element;
     if (layerName === 'players') element = createPlayerElement(entity);
@@ -86,6 +80,13 @@ export function removeEntity(entityId) {
     }
 }
 
+export function markAsEliminated(entityId) {
+    if (entityElements.has(entityId)) {
+        const element = entityElements.get(entityId);
+        element.classList.add('eliminated');
+    }
+}
+
 export function updatePlayerPosition(player) {
     if (entityElements.has(player.id)) {
         const element = entityElements.get(player.id);
@@ -102,12 +103,16 @@ export function clearLayer(layerName) {
 }
 
 export function clearAllEntities() {
-    entityElements.forEach((el) => {
-        if (el.parentNode) {
-            el.parentNode.removeChild(el);
+    for (const layerName in layers) {
+        if (layers[layerName]) {
+            layers[layerName].innerHTML = '';
         }
-    });
+    }
     entityElements.clear();
+    layers.powerups = null;
+    layers.bombs = null;
+    layers.players = null;
+    layers.explosions = null;
 }
 
 export function renderExplosions(explosions) {
@@ -117,7 +122,7 @@ export function renderExplosions(explosions) {
             class: 'explosion',
             style: `transform: translate(${exp.x * 40}px, ${exp.y * 40}px); background-color: orange; opacity: 0.8;`
         });
-        const el = manualRender(vNode);
+        const el = FacileJS.render(vNode);
         layers.explosions.appendChild(el);
     });
 }

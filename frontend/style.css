@@ -58,10 +58,13 @@ body {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    border: 2px solid white;
-    margin: 5px;
-    transition: all 0.1s linear;
     z-index: 10;
+    transition: opacity 0.3s ease; /* Smooth transition for elimination */
+}
+
+.player.eliminated {
+    opacity: 0.4;
+    z-index: 9; /* Render eliminated players behind active ones */
 }
 
 .bomb {
@@ -398,5 +401,109 @@ body {
     }
     100% {
         text-shadow: 0 0 5px rgba(80, 227, 194, 0.5);
+    }
+}
+
+/* --- Game Over Screen --- */
+.game-over-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 100;
+    animation: fade-in 0.5s ease-in-out;
+}
+
+.game-over-box {
+    padding: 40px 60px;
+    background-color: #3d1f2d;
+    border-radius: 15px;
+    border: 3px solid #b23a48;
+    text-align: center;
+    color: #fdeaf1;
+    transform: scale(0);
+    animation: zoom-in 0.5s 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    box-shadow: 0 0 30px rgba(255, 133, 179, 0.6);
+}
+
+.game-over-title {
+    font-size: 4em;
+    color: #ff85b3;
+    margin: 0;
+    text-shadow: 3px 3px 6px #000;
+    animation: slide-down 0.6s 0.8s ease-out forwards, pulse-title 2.5s 1.4s infinite ease-in-out;
+    opacity: 0;
+}
+
+.game-over-winner {
+    font-size: 2.5em;
+    margin: 20px 0;
+    animation: pop-in 0.5s 1.2s ease-out forwards;
+    opacity: 0;
+}
+
+.game-over-subtitle {
+    font-size: 1.2em;
+    color: #c5a7b6;
+    animation: pop-in 0.5s 1.4s ease-out forwards;
+    opacity: 0;
+}
+
+
+/* --- Keyframe Animations for Game Over --- */
+
+@keyframes zoom-in {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+@keyframes slide-down {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.retry-button {
+    margin-top: 30px;
+    padding: 12px 25px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ff85b3;
+    color: #3d1f2d;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    animation: pop-in 0.5s 1.6s ease-out forwards;
+    opacity: 0;
+}
+
+.retry-button:hover {
+    background-color: #fdeaf1;
+    transform: scale(1.05);
+}
+
+@keyframes pop-in {
+    from {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
     }
 }

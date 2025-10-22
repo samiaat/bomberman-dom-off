@@ -1,27 +1,22 @@
-
 export const createRouter = (store) => {
-  const routes = {
-    '#/nickname': 'nickname',
-    '#/lobby': 'lobby',
-    '#/game': 'game',
-    '#/gameover': 'gameover',
-  };
-
   const getScreenFromHash = () => {
     const hash = window.location.hash || '#/nickname';
-    return routes[hash] || 'nickname';
+    // Supprime le # et découpe par "/"
+    const segments = hash.slice(2).split('/'); // '#/' => ''
+    const screen = segments[0] || 'nickname';
+    const params = segments.slice(1); // tout ce qui vient après le screen
+    return { screen, params };
   };
 
   const handleHashChange = () => {
-    const screen = getScreenFromHash();
+    const { screen, params } = getScreenFromHash();
     store.dispatch({
       type: 'SET_SCREEN',
-      payload: screen,
+      payload: { screen, params },
     });
   };
 
-  window.onhashchange = handleHashChange;
-
+  window.addEventListener('hashchange', handleHashChange);
 
   // Initial route handling
   handleHashChange();

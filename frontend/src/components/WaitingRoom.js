@@ -30,15 +30,6 @@ export const WaitingRoom = (props) => {
             FacileJS.createElement('h2', {}, 'Salle d\'attente'),
             FacileJS.createElement('p', {}, `Joueurs connectés : ${playerCount} / 4`),
             renderLobbyMessage(),
-            FacileJS.createElement('div', { class: 'player-list' },
-                FacileJS.createElement('h3', {}, 'Joueurs :'),
-                ...Object.values(players || {}).map(player =>
-                    FacileJS.createElement('div', { class: 'player-list-item' },
-                        FacileJS.createElement('div', { class: 'player-color-indicator', style: `background-color: ${player.color}` }),
-                        FacileJS.createElement('span', {}, player.nickname)
-                    )
-                )
-            )
         ),
         FacileJS.createElement('div', { class: 'chat-container' },
             FacileJS.createElement('h3', {}, 'Chat'),

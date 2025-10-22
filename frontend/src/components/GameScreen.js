@@ -4,7 +4,8 @@ import { registerLayer } from '../renderer.js';
 
 // A simple sub-component to display player stats
 const StatsDisplay = (player) => {
-    if (player) {
+    // Check if the player exists and is alive to show stats.
+    if (player && player.isAlive) {
         return FacileJS.createElement('div', { class: 'stats-panel' },
             FacileJS.createElement('h3', {}, 'Mes Stats'),
             FacileJS.createElement('p', {}, `Vies: ${player.lives}`),
@@ -13,6 +14,7 @@ const StatsDisplay = (player) => {
             FacileJS.createElement('p', {}, `Vitesse: ${player.speed}`),
         );
     } else {
+        // Otherwise, show the eliminated message.
         return FacileJS.createElement('div', { class: 'stats-panel eliminated' },
             FacileJS.createElement('h3', {}, 'ÉLIMINÉ !')
         );
@@ -26,7 +28,7 @@ let lastMapSignature = '';
 const tileTypeToClass = { 0: 'floor', 1: 'wall', 2: 'block' };
 
 export const GameScreen = (props) => {
-    const { gameState, onkeydown, onkeyup, myId } = props;
+    const { gameState, onkeydown, onkeyup, onblur, myId } = props;
 
     const gameLayout = FacileJS.createElement('div', { class: 'game-layout' });
 
@@ -37,7 +39,7 @@ export const GameScreen = (props) => {
     }
 
     const { map, players } = gameState;
-    const me = players[myId];
+    const me = players ? players[myId] : null;
 
     // --- Map Caching Logic ---
     const currentMapSignature = map.map(row => row.join('')).join(';');
@@ -54,12 +56,15 @@ export const GameScreen = (props) => {
     }
 
     // --- Assemble the Game Board ---
+    // The component now only renders the static map and empty containers for dynamic entities.
+    // The `ref` prop gives us a direct DOM reference to the layer element, which we pass to our renderer.
     const gameBoard = FacileJS.createElement('div', {
             class: 'game-board',
             onkeydown: onkeydown,
             onkeyup: onkeyup,
-            tabindex: "0",
-            autofocus: true
+           onblur: props.onblur, // ✅ ajouté ici
+    tabindex: "0",
+    
         },
         FacileJS.createElement('div', { class: 'map-layer' }, ...mapVNodes),
         FacileJS.createElement('div', { class: 'powerups-layer', ref: (el) => registerLayer('powerups', el) }),
@@ -69,6 +74,8 @@ export const GameScreen = (props) => {
     );
 
     // Add panels and game board to the layout
+    // We pass the complete list of players to the panel
+    // so it can display everyone's status, even if they are eliminated.
     gameLayout.children.push(FacileJS.createElement(PlayerPanel, { players, myId }));
     gameLayout.children.push(gameBoard);
     gameLayout.children.push(FacileJS.createElement(StatsDisplay, me));
